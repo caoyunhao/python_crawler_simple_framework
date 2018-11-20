@@ -32,7 +32,7 @@ class Queue(object):
 
 class FIFOQueue(Queue):
     def __init__(self):
-        self.queue = thread_queue.Queue()
+        self.queue = thread_queue.Queue(100)
 
     def get(self, block=True, timeout=None):
         return self.queue.get(block, timeout)

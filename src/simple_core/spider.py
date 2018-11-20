@@ -34,7 +34,7 @@ class Spider(object):
     def save(self, item):
         if self._storage is None:
             self._storage = Storage(self._db_config)
-        self._storage.save(item)
+        self._storage.save_with_lock(item)
 
     def parse(self, response, **kwargs):
         """

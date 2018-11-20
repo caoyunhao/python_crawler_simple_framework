@@ -16,6 +16,7 @@ class Task(object):
 
 
 class RequestTask(Task):
-    def __init__(self, url, fail_time=0):
+    def __init__(self, url, fail_time=0, **params):
         self.url = url
         self.fail_time = fail_time
+        self.params = params

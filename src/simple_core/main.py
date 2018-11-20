@@ -3,6 +3,7 @@
 # @Time    : 2018/3/31 21:51
 # @Author  : Yunhao Cao
 # @File    : main.py
+import traceback
 import time
 from functools import partial
 
@@ -20,7 +21,7 @@ __all__ = [
 ]
 
 
-def work(task, spider, task_queue):
+def work(task, spider, task_queue, **config):
     url = task.url
 
     # 检测url的合法性, 根据自定义规则匹配, 返回定义规则,
@@ -29,7 +30,7 @@ def work(task, spider, task_queue):
         return
 
     # 解析函数
-    _parse_func = partial(spider.parse, current_task=task, task_queue=task_queue)
+    _parse_func = partial(spider.parse, current_task=task, task_queue=task_queue, params=task.params)
 
     success = True
     response = None
@@ -53,36 +54,41 @@ def work(task, spider, task_queue):
         parse_results_generator = _parse_func(response)
 
         def handle_result(r):
-            if isinstance(r, RequestTask):
-                task_queue.put(r)
-            elif isinstance(r, Item):
-                spider.save(r)
+            try:
+                if isinstance(r, RequestTask):
+                    task_queue.put(r)
+                elif isinstance(r, Item):
+                    spider.save(r)
+            except Exception:
+                logger.error(traceback.format_exc())
 
         if parse_results_generator:
             for parse_result in parse_results_generator:
                 handle_result(parse_result)
 
-    sleep_time = 5
+    sleep_time = config.get("sleep_time", 5)
     logger.info("Wait {} seconds...".format(sleep_time))
     time.sleep(sleep_time)
 
 
 class CrawlerMain(object):
     @staticmethod
-    def run(spider, start_urls):
+    def run(spider, requests, **config):
         """
         主函数
         :return:
         """
         # 请求队列初始化
-        queue = WebRequestQueue()
-        queue.put(start_urls)
+        logger.debug("config: {}".format(config))
 
-        s = Scheduler(1)
+        queue = WebRequestQueue()
+        queue.put(requests)
+
+        scheduler = Scheduler(config.get("worker", 1))
 
         spider = spider()
-        partial_work_func = partial(work, spider=spider, task_queue=queue)
+        partial_work_func = partial(work, spider=spider, task_queue=queue, config=config)
 
         while True:
             task = queue.get()
-            s.put(partial_work_func, (task,))
+            scheduler.put(partial_work_func, (task,))
